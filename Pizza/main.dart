@@ -22,10 +22,56 @@ class Pedido {
   Pedido(this.codigo, this.data, this.pizzas, this.valorTotal);
 }
 
+void salvarDadosEmArquivo(List<Pizza> cardapio, List<Pedido> pedidos) {
+  final file = File('dados.txt');
+  final sink = file.openWrite();
+
+  for (var pizza in cardapio) {
+    sink.write('Pizza:${pizza.codigo},${pizza.sabor},${pizza.preco}\n');
+  }
+
+  for (var pedido in pedidos) {
+    sink.write('Pedido:${pedido.codigo},${pedido.data},${pedido.valorTotal}');
+    for (var pizza in pedido.pizzas) {
+      sink.write(',${pizza.codigo}');
+    }
+    sink.write('\n');
+  }
+
+  sink.close();
+}
+
+void carregarDadosDoArquivo(List<Pizza> cardapio, List<Pedido> pedidos) {
+  final file = File('dados.txt');
+  if (file.existsSync()) {
+    final lines = file.readAsLinesSync();
+
+    for (var line in lines) {
+      final parts = line.split(',');
+      if (parts[0] == 'Pizza') {
+        final codigo = int.parse(parts[1]);
+        final sabor = parts[2];
+        final preco = double.parse(parts[3]);
+        cardapio.add(Pizza(codigo, sabor, preco));
+      } else if (parts[0] == 'Pedido') {
+        final codigo = int.parse(parts[1]);
+        final data = DateTime.parse(parts[2]);
+        final valorTotal = double.parse(parts[3]);
+        final pizzaCodigos = parts.sublist(4).map((codigo) => int.parse(codigo)).toList();
+        final pizzas = cardapio.where((pizza) => pizzaCodigos.contains(pizza.codigo)).toList();
+        pedidos.add(Pedido(codigo, data, pizzas, valorTotal));
+      }
+    }
+  }
+}
+
+
 void main() {
   List<Pizza> cardapio = [];
   List<Pedido> pedidos = [];
-  int codigoPedido = 1;
+  int proximoCodigoPedido = 1;
+
+  carregarDadosDoArquivo(cardapio, pedidos); // Carregar dados do arquivo ao iniciar o programa
 
   while (true) {
     print("\nMenu de opções:");
@@ -39,7 +85,6 @@ void main() {
 
     stdout.write("Digite a opção desejada: ");
     var opcao = int.parse(stdin.readLineSync()!);
-
     if (opcao == 1) {
       stdout.write("Digite o código da pizza: ");
       var codigoPizza = int.parse(stdin.readLineSync()!);
@@ -162,9 +207,9 @@ void main() {
         if (pedidoAtual.isNotEmpty) {
           var dataPedido = DateTime.now();
           var novoPedido =
-              Pedido(codigoPedido, dataPedido, pedidoAtual, totalPedido);
+              Pedido(proximoCodigoPedido, dataPedido, pedidoAtual, totalPedido);
           pedidos.add(novoPedido); // Adicionar o pedido à lista de pedidos
-          codigoPedido++; // Incrementar o próximo código disponível
+          proximoCodigoPedido++; // Incrementar o próximo código disponível
           print("\nPedido realizado com sucesso!");
         } else {
           print("Pedido vazio.");
@@ -196,6 +241,7 @@ void main() {
         }
       }
     } else if (opcao == 7) {
+      salvarDadosEmArquivo(cardapio, pedidos);
       break;
     } else {
       print("Opção inválida. Tente novamente.");
